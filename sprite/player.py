@@ -117,16 +117,6 @@ class Player(Sprite):
 
             self.fonts.render_text("You picked up the trash.", "default", (255, 255, 255))
 
-    def drop_trash(self) -> None:
-        if self._has_trash:
-            self._has_trash = False
-
-            self.holding_trash.rect.x = self.rect.x
-            self.holding_trash.rect.y = self.rect.y + 1
-            
-            self.holding_trash = None
-            self.fonts.render_text("You have dropped the trash on the ground.", "default", (255, 255, 255))
-
     def drop_trash_in_can(self, trashcan: TrashCan) -> None:
         if not self._has_trash:
             self.fonts.render_text("You need trash to drop it in the trash can.", "default", (255, 255, 255))
@@ -152,7 +142,7 @@ class Player(Sprite):
                 if not self._has_trash:
                     self.pickup_trash(other)
                 else:
-                    self.drop_trash()
+                    self.fonts.render_text("Drop the trash into a trash can.", "default", (255, 255, 255))
 
         elif isinstance(other, TrashCan):
             if pygame.key.get_pressed()[pygame.K_e]:
