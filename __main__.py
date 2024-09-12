@@ -2,27 +2,40 @@ from __future__ import annotations
 
 import pygame
 import random
+
+from misc import HowToPlay, MainMenu, Settings
+
 from .sprite import Camera, Player, Trash, TrashCan
+
 
 class Game:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((800, 600))
+        pygame.display.set_caption("Trashy Run")
         self.clock = pygame.time.Clock()
         self.running = True
+        self.state = "main_menu"
+
+        # Create screens
+        self.main_menu = MainMenu(self.screen)
+        self.settings = Settings(self.screen)
+        self.how_to_play = HowToPlay(self.screen)
 
         # Load and scale background
-        self.background = pygame.image.load("./assests/background.png")
+        self.background = pygame.image.load("./assets/background.png")
         self.background = pygame.transform.scale(self.background, (2000, 2000))
         
         # Create camera
-        self.camera = Camera(2000, 2000)
+        self.camera = Camera(800, 600, 2000, 2000)
 
         # Create sprite groups
         self.all_sprites = pygame.sprite.Group()
+        self.trash_group = pygame.sprite.Group()
+        self.trashcan_group = pygame.sprite.Group()
 
         # Create player
-        self.player = Player(400, 300)
+        self.player = Player(400, 300, self.screen, 2000, 2000)
         self.all_sprites.add(self.player)
 
         # Create mini-map surface
@@ -30,8 +43,11 @@ class Game:
         self.minimap_surf = pygame.Surface(self.minimap_size)
 
         # Load and scale player image for mini-map
-        self.minimap_player_image = pygame.image.load("./assests/player_icon.png")
+        self.minimap_player_image = pygame.image.load("./assets/player_icon.png")
         self.minimap_player_image = pygame.transform.scale(self.minimap_player_image, (10, 10))
+
+        self.create_trash(20)
+        self.create_trashcans()
 
     def create_trash(self, count):
         for _ in range(count):
@@ -50,11 +66,34 @@ class Game:
 
     def run(self):
         while self.running:
-            dt = self.clock.tick(60) / 1000.0
-            self.handle_events()
-            self.update(dt)
-            self.draw()
+            if self.state == "main_menu":
+                action = self.main_menu.run()
+                if action == "play":
+                    self.state = "game"
+                elif action == "settings":
+                    self.state = "settings"
+                elif action == "how_to_play":
+                    self.state = "how_to_play"
+                elif action == "quit":
+                    self.running = False
+            elif self.state == "settings":
+                action = self.settings.run()
+                if action == "back" or action == "quit":
+                    self.state = "main_menu"
+            elif self.state == "how_to_play":
+                action = self.how_to_play.run()
+                if action == "back" or action == "quit":
+                    self.state = "main_menu"
+            elif self.state == "game":
+                self.run_game()
+
         pygame.quit()
+
+    def run_game(self):
+        dt = self.clock.tick(60) / 1000.0
+        self.handle_events()
+        self.update(dt)
+        self.draw()
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -63,26 +102,28 @@ class Game:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_e:
                     self.player.drop_trash(self.trashcan_group)
+                elif event.key == pygame.K_ESCAPE:
+                    self.state = "main_menu"
 
     def update(self, dt):
-        # Store the player's previous position
         old_pos = self.player.rect.copy()
-
-        # Update all sprites
         self.all_sprites.update(dt)
 
-        # Check for collisions between player and trash cans
         collided_trashcans = pygame.sprite.spritecollide(self.player, self.trashcan_group, False)
         for trashcan in collided_trashcans:
             self.handle_collision(self.player, trashcan, old_pos)
             self.player.on_collision(trashcan)
 
-        # Check for collisions between player and trash
         collided_trash = pygame.sprite.spritecollide(self.player, self.trash_group, False)
         for trash in collided_trash:
             self.player.on_collision(trash)
 
         self.camera.update(self.player)
+
+        # Update high score
+        if self.player.score > self.main_menu.high_score:
+            self.main_menu.high_score = self.player.score
+            self.main_menu.save_high_score(self.player.score)
 
     def handle_collision(self, player, obstacle, old_pos):
         # Calculate the overlap on each side
@@ -140,3 +181,18 @@ class Game:
         self.draw_minimap()
 
         pygame.display.flip()
+
+    def draw(self):
+        self.screen.blit(self.background, self.camera.apply(self.background.get_rect()))
+
+        for sprite in self.all_sprites:
+            self.screen.blit(sprite.image, self.camera.apply(sprite))
+
+        self.draw_minimap()
+
+        # Draw score
+        self.player.fonts.render_text(f"Score: {self.player.score}", "default", (255, 255, 255), x=10, y=10)
+
+        pygame.display.flip()
+        
+Game().run()
