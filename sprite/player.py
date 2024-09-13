@@ -3,7 +3,7 @@ from __future__ import annotations
 import pygame
 from pygame.sprite import Sprite
 from ..fonts import FontManager
-from .trash import Trash, TrashCan
+from .trash import MopStation, Trash, TrashBag, TrashCan, WaterSpill
 
 
 class Camera:
@@ -54,6 +54,9 @@ class Player(Sprite):
         self.map_width: int = map_width
         self.map_height: int = map_height
         self.direction: str = 'down'  # track facing direction
+
+        self.has_mop: bool = False
+        self.trash_bag_capacity: int = 0
    
     def update(self, dt: float) -> None:
         keys = pygame.key.get_pressed()
@@ -109,13 +112,21 @@ class Player(Sprite):
 
     def pickup_trash(self, trash: Trash) -> None:
         if not self._has_trash:
+            if isinstance(trash, WaterSpill) and not self.has_mop:
+                self.fonts.render_text("You need a mop to clean water spills.", "default", (255, 255, 255))
+                return
+            
             self._has_trash = True
             self.holding_trash = trash
 
             self.holding_trash.rect.x = self.rect.x
             self.holding_trash.rect.y = self.rect.y
 
-            self.fonts.render_text("You picked up the trash.", "default", (255, 255, 255))
+            if isinstance(trash, TrashBag):
+                self.trash_bag_capacity = trash.score
+            
+            trash_type = type(trash).__name__
+            self.fonts.render_text(f"You picked up the {trash_type}.", "default", (255, 255, 255))
 
     def drop_trash_in_can(self, trashcan: TrashCan) -> None:
         if not self._has_trash:
@@ -126,24 +137,47 @@ class Player(Sprite):
         if pygame.sprite.collide_rect(self, trashcan):
             self._has_trash = False
             if self.holding_trash:
+                self.score += self.holding_trash.score
                 self.holding_trash.kill()  # Remove trash from all sprite groups
 
             self.holding_trash = None
-            self.score += 1
-
-            self.fonts.render_text("You dropped the trash in the trash can.", "default", (255, 255, 255))
+            trash_type = type(self.holding_trash).__name__
+            self.fonts.render_text(f"You dropped the {trash_type} in the trash can.", "default", (255, 255, 255))
         else:
             self.fonts.render_text("Move closer to the trash can.", "default", (255, 255, 255))
 
+    def pickup_mop(self, mop_station) -> None:
+        if pygame.sprite.collide_rect(self, mop_station):
+            self.has_mop = True
+            self.fonts.render_text("You picked up a mop.", "default", (255, 255, 255))
+        else:
+            self.fonts.render_text("Press E to pickup the mop.", "default", (255, 255, 255))
+
+    def clean_water_spill(self, water_spill: WaterSpill) -> None:
+        if self.has_mop and self.mop_uses > 0:
+            water_spill.kill()  # Remove the water spill
+            self.score += water_spill.score
+            self.fonts.render_text(f"You cleaned the water spill. Mop uses left: {self.mop_uses}", "default", (255, 255, 255))
+            self.has_mop = False
+        elif not self.has_mop:
+            self.fonts.render_text("You need a mop to clean water spills.", "default", (255, 255, 255))
+        else:
+            self.fonts.render_text("Your mop is worn out. Get a new one from the mop station.", "default", (255, 255, 255))
 
     def on_collision(self, other: Sprite) -> None:
         if isinstance(other, Trash):
             if pygame.key.get_pressed()[pygame.K_e]:
-                if not self._has_trash:
-                    self.pickup_trash(other)
-                else:
-                    self.fonts.render_text("Drop the trash into a trash can.", "default", (255, 255, 255))
+                if self._has_trash:
+                    self.fonts.render_text("Dropped the trash into a trash can.", "default", (255, 255, 255))
 
+                elif isinstance(other, WaterSpill):
+                    self.clean_water_spill(other)
+                else:
+                    self.pickup_trash(other)
         elif isinstance(other, TrashCan):
             if pygame.key.get_pressed()[pygame.K_e]:
                 self.drop_trash_in_can(other)
+
+        elif isinstance(other, MopStation):
+            if pygame.key.get_pressed()[pygame.K_e]:
+                self.pickup_mop(other)

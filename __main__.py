@@ -5,7 +5,8 @@ import pygame
 import random
 
 from misc import GameOver, HowToPlay, MainMenu, Settings
-from sprite.trash import EatenFood, TrashBag, WaterSpill
+from sprite.npc import NPC
+from sprite.trash import Dumpster, EatenFood, TrashBag, WaterSpill
 
 from .sprite import Camera, Player, TrashCan
 
@@ -35,10 +36,11 @@ class Game:
         self.all_sprites = pygame.sprite.Group()
         self.trash_group = pygame.sprite.Group()
         self.trashcan_group = pygame.sprite.Group()
+        self.npc_group = pygame.sprite.Group()
 
         # Game variables
         self.game_over = None
-        self.start_time = None
+        self.start_time = 180
         self.game_duration = 180 
 
         # Create player
@@ -55,6 +57,17 @@ class Game:
 
         self.create_trash(20)
         self.create_trashcans()
+        self.create_npcs(5)
+        self.create_dumpsters(2)
+    
+    def create_dumpsters(self, count):
+        for _ in range(count):
+            x = random.randint(0, 1900)
+            y = random.randint(0, 1900)
+            dumpster = Dumpster(x, y)
+            self.all_sprites.add(dumpster)
+            self.dumpster_group.add(dumpster)
+
 
     def create_trash(self, count):
         trash_types = [WaterSpill, EatenFood, TrashBag]
@@ -65,12 +78,28 @@ class Game:
             self.all_sprites.add(trash)
             self.trash_group.add(trash)
 
+    def create_trashbags(self, count):
+        for _ in range(count):
+            x = random.randint(0, 1900)
+            y = random.randint(0, 1900)
+            trash = TrashBag(x, y)
+            self.all_sprites.add(trash)
+            self.trash_group.add(trash)
+
     def create_trashcans(self):
         corners = [(0, 0), (1900, 0), (0, 1900), (1900, 1900)]  # Adjust based on your map size
         for corner in corners:
             trashcan = TrashCan(corner[0], corner[1])
             self.all_sprites.add(trashcan)
             self.trashcan_group.add(trashcan)
+
+    def create_npcs(self, count):
+        for _ in range(count):
+            x = random.randint(0, 1900)
+            y = random.randint(0, 1900)
+            npc = NPC(x, y, 2000, 2000)
+            self.all_sprites.add(npc)
+            self.npc_group.add(npc)
 
     def run(self):
         while self.running:
@@ -183,16 +212,25 @@ class Game:
         scale_x = self.minimap_size[0] / 2000
         scale_y = self.minimap_size[1] / 2000
 
-        # Draw player on mini-map
+        # Draw scaled map image
+        scaled_map = pygame.transform.scale(self.background, self.minimap_size)
+        self.minimap_surf.blit(scaled_map, (0, 0))
+
+        # Draw other entities on mini-map
+        for sprite in self.all_sprites:
+            mini_sprite_pos = (int(sprite.rect.x * scale_x), int(sprite.rect.y * scale_y))
+            
+            # Scale the sprite's image for the minimap
+            minimap_sprite_size = (int(sprite.image.get_width() * scale_x), int(sprite.image.get_height() * scale_y))
+            minimap_sprite_image = pygame.transform.scale(sprite.image, minimap_sprite_size)
+            
+            # Blit the scaled sprite image onto the minimap
+            self.minimap_surf.blit(minimap_sprite_image, mini_sprite_pos)
+
+        # Draw player on mini-map (on top of other sprites)
         mini_player_pos = (int(self.player.rect.x * scale_x), int(self.player.rect.y * scale_y))
         mini_player_rect = self.minimap_player_image.get_rect(center=mini_player_pos)
         self.minimap_surf.blit(self.minimap_player_image, mini_player_rect)
-
-        # Draw other entities on mini-map (if any)
-        for sprite in self.all_sprites:
-            if sprite != self.player:
-                mini_sprite_pos = (int(sprite.rect.x * scale_x), int(sprite.rect.y * scale_y))
-                pygame.draw.circle(self.minimap_surf, (0, 255, 0), mini_sprite_pos, 2)
 
         # Draw mini-map on main screen
         minimap_pos = (10, self.screen.get_height() - self.minimap_size[1] - 10)

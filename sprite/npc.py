@@ -1,7 +1,11 @@
+from typing import List
+
 import pygame
-from pygame.sprite import Sprite
 import random
-from .trash_types import Trash
+
+from pygame.sprite import Sprite
+from sprite.table import DirtyTable
+from .trash import Trash
 
 class NPC(Sprite):
     def __init__(self, x: int, y: int, map_width: int, map_height: int):
@@ -69,17 +73,24 @@ class NPC(Sprite):
         elif self.direction == 'down':
             self.image = pygame.transform.rotate(self.original_image, -90)
 
-    def throw_trash(self, all_sprites: pygame.sprite.Group, trash_group: pygame.sprite.Group) -> None:
-        trash_x = self.rect.x + random.randint(-50, 50)
-        trash_y = self.rect.y + random.randint(-50, 50)
-        
-        # Ensure trash is within map boundaries
-        trash_x = max(0, min(trash_x, self.map_width - 32))  # Assuming trash sprite is 32x32
-        trash_y = max(0, min(trash_y, self.map_height - 32))
-        
-        new_trash = Trash(trash_x, trash_y)
-        all_sprites.add(new_trash)
-        trash_group.add(new_trash)
+    def throw_trash(self, all_sprites: pygame.sprite.Group, trash_group: pygame.sprite.Group, tables: List[DirtyTable]) -> None:
+        if nearby_tables := [
+            table for table in tables if self.rect.colliderect(table.rect)
+        ]:
+            target_table = random.choice(nearby_tables)
+            target_table.make_dirty(all_sprites, trash_group)
+        else:
+            # If no tables nearby, throw trash on the ground as before
+            trash_x = self.rect.x + random.randint(-50, 50)
+            trash_y = self.rect.y + random.randint(-50, 50)
+
+            # Ensure trash is within map boundaries
+            trash_x = max(0, min(trash_x, self.map_width - 32))
+            trash_y = max(0, min(trash_y, self.map_height - 32))
+
+            new_trash = Trash(trash_x, trash_y)
+            all_sprites.add(new_trash)
+            trash_group.add(new_trash)
 
     def draw(self, screen: pygame.Surface) -> None:
         screen.blit(self.image, self.rect)
