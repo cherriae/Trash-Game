@@ -1,9 +1,12 @@
 from .player import *
-from .trash import *
+from .table import *
+from .npc import *
 
 __all__ = [
     "Camera",
     "Player",
     "Trash",
-    "TrashCan"
+    "TrashCan",
+    "NPC",
+    "Table"
 ]
