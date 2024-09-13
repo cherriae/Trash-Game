@@ -4,8 +4,9 @@ import pygame
 import random
 
 from misc import HowToPlay, MainMenu, Settings
+from sprite.trash import EatenFood, TrashBag, WaterSpill
 
-from .sprite import Camera, Player, Trash, TrashCan
+from .sprite import Camera, Player, TrashCan
 
 
 class Game:
@@ -50,10 +51,11 @@ class Game:
         self.create_trashcans()
 
     def create_trash(self, count):
+        trash_types = [WaterSpill, EatenFood, TrashBag]
         for _ in range(count):
-            x = random.randint(0, 1900)  # Adjust based on your map size
+            x = random.randint(0, 1900)
             y = random.randint(0, 1900)
-            trash = Trash(x, y)
+            trash = random.choice(trash_types)(x, y)
             self.all_sprites.add(trash)
             self.trash_group.add(trash)
 
