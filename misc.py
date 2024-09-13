@@ -61,10 +61,9 @@ class MainMenu:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return "quit"
-                action = self.handle_event(event)
-                if action:
+                if action := self.handle_event(event):
                     return action
-            
+
             self.draw()
             pygame.display.flip()
 
@@ -130,11 +129,10 @@ class Settings:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return "quit"
-                action = self.handle_event(event)
-                if action:
+                if action := self.handle_event(event):
                     self.save_settings()
                     return action
-            
+
             self.draw()
             pygame.display.flip()
 
@@ -178,6 +176,52 @@ class HowToPlay:
                 if event.type == pygame.KEYDOWN:
                     return "back"
             
+            self.draw()
+            pygame.display.flip()
+
+class GameOver:
+    def __init__(self, screen, score):
+        self.screen = screen
+        self.font_manager = FontManager(screen)
+        self.font_manager.add_font("title", "./assets/fonts/title_font.ttf", 64)
+        self.font_manager.add_font("menu", "./assets/fonts/menu_font.ttf", 32)
+        
+        self.bg_image = pygame.image.load("./assets/game_over_bg.png")
+        self.bg_image = pygame.transform.scale(self.bg_image, (800, 600))
+        
+        self.score = score
+        self.menu_items = ["Replay", "Main Menu"]
+        self.selected_item = 0
+    
+    def draw(self):
+        self.screen.blit(self.bg_image, (0, 0))
+        
+        self.font_manager.render_text("Game Over", "title", (255, 255, 255), y=50)
+        self.font_manager.render_text(f"Score: {self.score}", "menu", (255, 255, 0), y=150)
+        
+        for i, item in enumerate(self.menu_items):
+            color = (255, 255, 255) if i == self.selected_item else (200, 200, 200)
+            self.font_manager.render_text(item, "menu", color, y=250 + i * 60)
+    
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_UP:
+                self.selected_item = (self.selected_item - 1) % len(self.menu_items)
+            elif event.key == pygame.K_DOWN:
+                self.selected_item = (self.selected_item + 1) % len(self.menu_items)
+            elif event.key == pygame.K_RETURN:
+                return self.menu_items[self.selected_item].lower().replace(" ", "_")
+        return None
+    
+    def run(self):
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return "quit"
+                if action := self.handle_event(event):
+                    return action
+
             self.draw()
             pygame.display.flip()
 

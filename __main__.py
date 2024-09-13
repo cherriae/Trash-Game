@@ -1,9 +1,10 @@
 from __future__ import annotations
+import time
 
 import pygame
 import random
 
-from misc import HowToPlay, MainMenu, Settings
+from misc import GameOver, HowToPlay, MainMenu, Settings
 
 from .sprite import Camera, Player, Trash, TrashCan
 
@@ -12,7 +13,7 @@ class Game:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((800, 600))
-        pygame.display.set_caption("Trashy Run")
+        pygame.display.set_caption("Cafeteria Run")
         self.clock = pygame.time.Clock()
         self.running = True
         self.state = "main_menu"
@@ -33,6 +34,11 @@ class Game:
         self.all_sprites = pygame.sprite.Group()
         self.trash_group = pygame.sprite.Group()
         self.trashcan_group = pygame.sprite.Group()
+
+        # Game variables
+        self.game_over = None
+        self.start_time = None
+        self.game_duration = 180 
 
         # Create player
         self.player = Player(400, 300, self.screen, 2000, 2000)
@@ -68,32 +74,54 @@ class Game:
         while self.running:
             if self.state == "main_menu":
                 action = self.main_menu.run()
-                if action == "play":
-                    self.state = "game"
-                elif action == "settings":
-                    self.state = "settings"
-                elif action == "how_to_play":
+                if action == "how_to_play":
                     self.state = "how_to_play"
+                elif action == "play":
+                    self.state = "game"
+                    self.start_time = None  # Reset the start time
                 elif action == "quit":
                     self.running = False
+                elif action == "settings":
+                    self.state = "settings"
             elif self.state == "settings":
                 action = self.settings.run()
-                if action == "back" or action == "quit":
+                if action in ["back", "quit"]:
                     self.state = "main_menu"
             elif self.state == "how_to_play":
                 action = self.how_to_play.run()
-                if action == "back" or action == "quit":
+                if action in ["back", "quit"]:
                     self.state = "main_menu"
             elif self.state == "game":
                 self.run_game()
+            elif self.state == "game_over":
+                action = self.game_over.run()
+                if action == "main_menu":
+                    self.state = "main_menu"
+                elif action == "quit":
+                    self.running = False
 
+                elif action == "replay":
+                    self.state = "game"
+                    self.start_time = None  # Reset the start time
+                    self.player.score = 0  # Reset the score
         pygame.quit()
 
     def run_game(self):
+        if self.start_time is None:
+            self.start_time = time.time()
+        
+        elapsed_time = time.time() - self.start_time
+        remaining_time = max(0, self.game_duration - elapsed_time)
+        
+        if remaining_time <= 0:
+            self.state = "game_over"
+            self.game_over = GameOver(self.screen, self.player.score)
+            return
+
         dt = self.clock.tick(60) / 1000.0
         self.handle_events()
         self.update(dt)
-        self.draw()
+        self.draw(remaining_time)
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -169,20 +197,7 @@ class Game:
         self.screen.blit(self.minimap_surf, minimap_pos)
         pygame.draw.rect(self.screen, (0, 0, 0), (*minimap_pos, *self.minimap_size), 2)
 
-    def draw(self):
-        # Draw background
-        self.screen.blit(self.background, self.camera.apply(self.background.get_rect()))
-
-        # Draw sprites
-        for sprite in self.all_sprites:
-            self.screen.blit(sprite.image, self.camera.apply(sprite))
-
-        # Draw mini-map
-        self.draw_minimap()
-
-        pygame.display.flip()
-
-    def draw(self):
+    def draw(self, remaining_time):
         self.screen.blit(self.background, self.camera.apply(self.background.get_rect()))
 
         for sprite in self.all_sprites:
@@ -192,6 +207,13 @@ class Game:
 
         # Draw score
         self.player.fonts.render_text(f"Score: {self.player.score}", "default", (255, 255, 255), x=10, y=10)
+
+        # Draw timer
+        minutes = int(remaining_time // 60)
+        seconds = int(remaining_time % 60)
+        milliseconds = int((remaining_time % 1) * 1000)
+        timer_text = f"Time: {minutes:02d}:{seconds:02d}.{milliseconds:03d}"
+        self.player.fonts.render_text(timer_text, "default", (255, 255, 255), x=10, y=40)
 
         pygame.display.flip()
         
